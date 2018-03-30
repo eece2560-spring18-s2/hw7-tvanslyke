@@ -195,11 +195,39 @@ void Database::LoadData(const std::string &data_folder_path,
 
 
 void Database::BuildMemberGraph() {
-  // Fill in your code here
+  for(auto g: groups)
+    Member::ConnectGroupMembers(*g);
 }
 
 double Database::BestGroupsToJoin(Member *root) {
-  // Fill in your code here
+  using conn_t = MemberConnection*;
+  struct ConnectionComparator {
+    bool operator()(conn_t l, conn_t r) const
+    { return l->GetWeight() > r->GetWeight(); } 
+  };
+  std::priority_queue<conn_t, std::vector<conn_t>, ConnectionComparator> pending;
+  auto current_member = root;
+  double weight = 0.0;
+  do {
+    for(auto& conn: current_member->connecting_members)
+    {
+      auto child = conn.second.dst;
+      if(child != root and not child->parent)
+      {
+        pending.push(&(conn.second));
+      }
+    }
+    while((not pending.empty()) and pending.top()->dst->parent)
+      pending.pop();
+    if(pending.empty())
+      break;
+    auto conn = pending.top();
+    weight += conn->GetWeight();
+    conn->dst->parent = current_member;
+    current_member = conn->dst;
+    pending.pop();
+  } while(not pending.empty());
+  return weight;
 }
 
 }
